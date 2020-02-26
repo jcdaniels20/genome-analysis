@@ -1,0 +1,100 @@
+---
+title: 'Lab 4: Publication Graphics'
+author: "Jarrod Daniels"
+date: "2/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Load Libraries, echo=TRUE, results='hide'}
+library(ggplot2)
+library(plotly)
+library(DT)
+```
+
+
+```{r load data}
+SNPs = read.table("23andMe_complete.txt", header = TRUE, sep = "\t")
+```
+
+
+
+Exercise 1
+```{r Exercise 1}
+ggplot(data = SNPs, aes(x= chromosome))  + geom_bar(fill="blue") + ggtitle("Count of SNPs in Each Chromosome") + labs(y= "SNP Count", x = "Chromosome")
+```
+
+Exercise 2
+```{r Exercise 2}
+colorPal = c(
+  "--" = "Blue",
+  "A" = "Red",
+  "C" = "Red",
+  "G" = "Red",
+  "T" = "Red",
+  "AA" = "Green",
+  "AC" = "Green",
+  "AG" = "Green",
+  "AT" = "Green",
+  "CC" = "Green",
+  "CG" = "Green",
+  "CT" = "Green",
+  "DD" = "Blue",
+  "DI" = "Blue",
+  "GG" = "Green",
+  "GT" = "Green",
+  "II" = "Blue",
+  "D" = "Blue",
+  "I" = "Blue",
+  "TT" = "Green"
+)
+
+ggplot(data = SNPs, aes(fill = genotype, x= chromosome))  + geom_bar() + ggtitle("Genotype Contribution to Chromosome Count") + labs(y = "Count", x = "Chromosome ")  + scale_fill_manual(values = colorPal)
+```
+```{r Exercise 3 part 3}
+ppi = 300
+png("Exercise3_plot.png", width=6*ppi, height=6*ppi, res=ppi)
+ggplot(data = SNPs, aes(chromosome, fill = genotype)) + geom_bar(position='dodge') + ggtitle("Individual Genotype Count Per Chromosome") + labs(x = "Chromosome", y = "Count")
+dev.off()
+```
+Exercise 3
+![Genotype counts per chromosome](Exercise3_plot.png) 
+
+
+
+
+Exercise 4
+```{r Exercise 4, fig.width= 12, fig.height= 12}
+ggplot(data = SNPs, aes(chromosome, fill = genotype)) + geom_bar(position='dodge') + facet_wrap(~SNPs$genotype, ncol = 2) + ggtitle("Wrapped Graphs of Genotype Counts Per Chromosome") + labs(x ="Chromosome", y ="Count")
+```
+
+
+
+Exercise 5
+```{r Exercise 5}
+ggplotly(
+ggplot(data = SNPs, aes(chromosome, fill = genotype)) + geom_bar(position='dodge') + facet_wrap(~SNPs$genotype, ncol = 2) + ggtitle("Wrapped Graphs of Genotype Counts Per Chromosome (Plotly)") + labs(x ="Chromosome", y ="Count"), width = 1000, height = 1000)
+
+  
+```
+
+
+
+Exercise 6
+```{r Exercise 6}
+dataTable = SNPs[ which(SNPs$chromosome == 'Y'), ]
+datatable(dataTable)
+```
+
+
+
+
+
+
+
+
+

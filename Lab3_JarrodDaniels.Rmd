@@ -1,0 +1,62 @@
+---
+title: "Biology 497G Lab 3"
+author: "Jarrod Daniels"
+date: "2/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install packages, eval=FALSE}
+install.packages("tidyverse")
+```
+
+```{r load library/Data}
+library(ggplot2)
+SNPs = read.table("23andMe_complete.txt", header = TRUE, sep = "\t")
+```
+
+Exercise 1
+```{r Exercise 1}
+bp = ggplot(data = SNPs, aes(x= chromosome))  + geom_bar(fill="blue") + ggtitle("Exercise 1: Count of SNPs in Each Chromosome")
+
+bp
+```
+
+Exercise 2
+```{r Exercise 2}
+SNPs$chromosome = ordered(SNPs$chromosome, levels=c(seq(1, 22), "X", "Y", "MT"))
+
+bp2 = ggplot(data = SNPs, aes(x= chromosome))  + geom_bar(fill="lightcoral") + ggtitle("Exercise 2: Count of SNPs in Each Chromosome (Ordered)")
+
+bp2 
+
+```
+
+Exercise 3
+```{r Exercise 3}
+bp3 = ggplot(data = SNPs, aes(fill = genotype, x= chromosome))  + geom_bar() + ggtitle("Exercise 3: Genotype Contribution to Chromosome Count")
+bp3
+```
+
+Exercise 4
+```{r Exercise 4}
+bp4 = ggplot(data = SNPs, aes(fill = genotype, x= chromosome))  + geom_bar(position = "fill", color = "black") + ggtitle("Exercise 4: Genotype Contribution (Equal Sized Bars)")
+bp4
+```
+
+Exercise 5
+```{r Exercise 5}
+g5 = ggplot(data = SNPs, aes(chromosome, fill = genotype)) + geom_bar(position='dodge') + ggtitle("Exercise 5: Individual Genotype Count Per Chromosome")
+g5
+
+```
+
+
+Exercise 6
+```{r Exercise 6}
+g6 = ggplot(data = SNPs, aes(chromosome, fill = genotype)) + geom_bar(position='dodge') + facet_wrap(~SNPs$genotype) + ggtitle("Exercise 6: Wrapped Graphs of Genotype Counts Per Chromosome")
+g6
+```

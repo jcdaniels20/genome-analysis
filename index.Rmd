@@ -1,9 +1,22 @@
 ---
-title: "index"
+title: "Biology 497G: Human Genome Analysis"
 author: "Jarrod Daniels"
 date: "2/26/2020"
 output: html_document
+bibliography: data/references.bib
 ---
-This is my new website!
+This is my new website for Biology 497G!
 
-* [This is my lab 6 (copy of lab 5)](lab5_JarrodDaniels.html)
+### Labs
+
+* [lab 3](lab3_JarrodDaniels.html)
+* [lab 4](lab4_JarrodDaniels.html)
+* [lab 5](lab5_JarrodDaniels.html)
+* [lab 6](lab6_JarrodDaniels.html)
+
+<br />
+<br />
+
+Application written in R [@RCoreTeam] using the Shiny framework [@Chang2015].
+
+# REFERENCES
