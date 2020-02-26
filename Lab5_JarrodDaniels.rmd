@@ -1,0 +1,169 @@
+---
+title: 'Lab 5: Data Wrangling'
+author: "Jarrod Daniels"
+date: "2/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load library, message=FALSE}
+library(tidyverse)
+```
+
+
+```{r download data, eval=FALSE}
+download.file(url="https://ndownloader.figshare.com/files/2292169",
+               destfile = "data/portal_data_joined.csv")
+```
+
+```{r read data, message=FALSE}
+surveys <- read_csv("data/portal_data_joined.csv")
+
+SNPs <- read_tsv("data/23andMe_complete.txt", skip = 14, col_types = 
+  cols(chromosome = col_factor()))
+```
+
+Data Carpentry Challenges:
+
+Challenge 1
+```{r Challenge 1}
+surveys %>% 
+  filter(year < 1995) %>% 
+  select(year, sex, weight)
+```
+
+
+Challenge 2
+```{r Challenge 2}
+new_hindfoot_survey = surveys %>%
+  filter(!is.na(hindfoot_length)) %>% 
+  mutate(hindfoot_half = hindfoot_length / 2) %>%
+  filter(hindfoot_half < 30) %>% 
+  select(species_id, hindfoot_half)
+```
+
+Challenge 3-1
+```{r Challenge 3.1}
+surveys %>% 
+  count(plot_type)
+```
+
+Challenge 3-2
+```{r Challenge 3.2}
+surveys %>% 
+  filter(!is.na(hindfoot_length)) %>% 
+  group_by(species_id) %>% 
+  summarize(mean_hindfoot_length = mean(hindfoot_length),
+            min_hindfoot_length = min(hindfoot_length),
+            max_hindfoot_length = max(hindfoot_length),
+            num_observations = n())
+```
+
+Challenge 3-3
+```{r Challenge 3.3}
+surveys %>%
+  filter(!is.na(weight)) %>% 
+  group_by(year) %>% 
+  filter(weight == max(weight)) %>% 
+  select(year, genus, species, weight) %>% 
+  arrange(year)
+```
+
+Challenge 4-1
+```{r Challenge 4.1}
+spread_challenge = surveys %>%
+  group_by(plot_id, year) %>% 
+  summarize(unique_genera = n_distinct(genus)) %>% 
+  spread(key = year, value = unique_genera)
+  
+head(spread_challenge)
+
+```
+
+Challenge 4-2
+```{r Challenge 4.2}
+spread_challenge %>% 
+  gather(key = year, value = unique_genera, -plot_id)
+```
+
+Challenge 4-3
+```{r Challenge 4.3}
+new_surveys = surveys %>% 
+  gather(key = measurement, value, hindfoot_length, weight)
+```
+
+Challenge 4-4
+```{r Challenge 4.4}
+new_surveys %>% 
+  group_by(year, measurement, plot_type) %>% 
+  summarize(mean_val = mean(value, na.rm = TRUE)) %>% 
+  spread(measurement, mean_val)
+```
+
+LAB EXERCISES
+
+Exercise 1
+```{r Exercise 1}
+SNPs %>% 
+  select(position, genotype)
+```
+
+Exercise 2
+```{r Exercise 2}
+SNPs %>% 
+  filter(chromosome == "MT") %>% 
+  filter(genotype != "A", genotype != "T")
+```
+Exercise 3
+```{r Exercise 3}
+SNPs %>% 
+  group_by(chromosome) %>% 
+  summarise( min_position = min(position),
+             max_position = max(position),
+             num_SNPS = n()
+      )
+```
+
+Exercise 4
+```{r Exercise 4}
+SNPs %>% 
+  group_by(chromosome) %>% 
+  summarise( min_position = min(position),
+             max_position = max(position),
+             num_SNPs = n()
+      ) %>% 
+  mutate(SNP_density = (num_SNPs/(max_position-min_position)) )
+
+```
+Exercise 5
+```{r Exercise 5}
+SNPs %>% 
+  group_by(chromosome) %>% 
+  summarise( min_position = min(position),
+             max_position = max(position),
+             num_SNPs = n()
+      ) %>% 
+  mutate(SNP_density = (num_SNPs/(max_position-min_position)) ) %>% 
+  arrange(SNP_density)
+
+```
+
+Exercise 6
+```{r Exercise 6}
+snp_wrangling = SNPs %>% 
+  group_by(chromosome) %>% 
+  summarise( min_position = min(position),
+             max_position = max(position),
+             num_SNPs = n()
+      ) %>% 
+  mutate(SNP_density = (num_SNPs/(max_position-min_position)) ) %>% 
+  arrange(SNP_density)
+
+write.csv(snp_wrangling, "data/snp_data_wrangling.csv")
+```
+
+
+
