@@ -1,0 +1,9 @@
+---
+title: "index"
+author: "Jarrod Daniels"
+date: "2/26/2020"
+output: html_document
+---
+This is my new website!
+
+* [This is my lab6 (copy of lab5](lab5_JarrodDaniels.html)
