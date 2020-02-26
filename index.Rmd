@@ -9,10 +9,10 @@ This is my new website for Biology 497G!
 
 ### Labs
 
+* [lab 2](lab2B_JarrodDaniels.html)
 * [lab 3](lab3_JarrodDaniels.html)
 * [lab 4](lab4_JarrodDaniels.html)
 * [lab 5](lab5_JarrodDaniels.html)
-* [lab 6](lab6_JarrodDaniels.html)
 
 <br />
 <br />

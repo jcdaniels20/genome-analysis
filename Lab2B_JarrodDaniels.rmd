@@ -1,0 +1,75 @@
+---
+title: "Lab 2B"
+author: "Jarrod Daniels"
+date: "1/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1
+```{r exercise 1, include=TRUE}
+vec1 <- c(1,3,6,9,12)
+vec2 <- c(1,0,1,0,1)
+
+vec1+vec2
+vec1-vec2
+vec1*vec2
+vec1/vec2
+```
+
+## Exercise 2
+```{r exercise 2, include=TRUE}
+vecA <- c(0,1,2,3)
+vecB <- c("aa","bb","cc","dd")
+vecC <- c("aa", 1, "bb", 2)
+
+str(vecA)
+str(vecB)
+str(vecC)
+```
+
+## Exercise 3
+```{r exercise 3, include=TRUE}
+genotype1 <- c("AA", "AA", "AG", "GG", "GG")
+genotype2 <- c("AA", "AA", "GG", "GG", "GG")
+genoMatrix <- cbind(genotype1,genotype2)
+table(genoMatrix)
+```
+
+## Exercise 4 
+```{r exercise 4, include=TRUE}
+treatment1 <- c(0,1,2,3,4)
+treatment2 <- c(0,2,4,6,8)
+treatment3 <- c(0,3,6,9,12)
+time <- c(0,2,4,6,8)
+
+df <- data.frame(time, treatment1, treatment2, treatment3)
+plot(df$time, df$treatment3)
+
+```
+
+## Exercise 5
+```{r exercise 5, include=TRUE}
+SNP_table2 <- read.table("23andMe_complete.txt", header = TRUE, sep = "\t")
+str(SNP_table2)
+```
+Object type is Factor (with 25 levels). I believe it is different than the example table
+in the truncated file because there is only one possbile value for the chromosome column (all values are 1)
+where in the compelte file there are multiple unique chromosomes that were included in the data
+(25 unique chromosomes to be exact). Thus when reading in the table, R made the chromosome column a categorical/factored data variable, rather than a simple integer as seen in the example file.
+
+
+## Exercise 6
+```{r exercise 6, include=TRUE}
+genotable <- table(SNP_table2$genotype)
+genotable
+```
+
+## Exercise 7
+```{r exercise 7, include=TRUE}
+chromosome_table_A <- subset(SNP_table2$chromosome, SNP_table2$genotype == 'A')
+table(chromosome_table_A)
+```
