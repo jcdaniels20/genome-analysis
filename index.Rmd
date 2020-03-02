@@ -19,4 +19,4 @@ This is my new website for Biology 497G!
 
 Application written in R [@RCoreTeam] using the Shiny framework [@Chang2015].
 
-# REFERENCES
+# REFERENCE
