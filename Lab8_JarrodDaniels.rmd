@@ -1,0 +1,15 @@
+---
+title: "Lab 8: Genealogical Tree"
+author: "Jarrod Daniels"
+date:
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+![Daniels Family Genealogical Tree](Daniels_Jarrod_Family_Tree.png)
+
+<br>
+Note: On my mother's side of the family, there is little data past her grandparents. This is because my mother's parents were immigrants and the family lineage was not well maintained once they came to the United States. As a result of this, I was only able to track up to her grandparents. My father's side of the family however does have a complete family tree.

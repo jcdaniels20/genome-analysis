@@ -1,0 +1,504 @@
+---
+title: "Lab 7: Data Preprocessing and Normalization"
+author: "Jarrod Daniels"
+date: "3/4/2020"
+output: html_document
+---
+# Introduction (1-1.1)
+
+The first part of the workflow (1-1.1) introduces us to Bioconductor as well as some of its main packages and how they are used for analysis of RNA-seq data.  
+
+It also introduces to the data that will be used throuhgout the workflow, specifically RNA-seq data on airway smooth muscle cells that were treated with dexamethasone
+
+
+# 2 Preparing quantification input to DESeq2 
+
+
+The workflow also goes into detail about preping quanitfication data in the form of a matrix/un-normalized counts. It is also important to note that the values in these matrices should be counts or estimatted counts of sequencing reads/fragments 
+
+
+### 2.1 Transcript quantification and tximport / tximeta
+
+One of the purposes of this workflow is to demonstrate how to import transcript-level quantification data, aggregating to the gene-level with tximport or tximeta
+
+The workflow also goes over how transcription methods/technologies such as Salmon can erform mapping or alignment of reads to reference transcripts, outputting estimated counts per transcript as well as effective transcript lengths which summarize bias effects. Once this is done, then we can use tximport or tximeta to assemble estimated count and offset matrices for use with Bioconductor differential gene expression packages, as will be demonstrated below. 
+
+There are advantages to using transcript abundance quantifiers in conjunction with tximport/tximeta to produce gene-level count matrices and normalizing offsets.... they are 
+
+1: this approach corrects for any potential changes in gene length across samples
+
+2:  some of these methods are substantially faster and require less memory and disk usage compared to alignment-based methods
+
+3:it is possible to avoid discarding those fragments that can align to multiple genes with homologous sequence
+
+
+### 2.2 Quantifying with Salmon
+
+This section gives a brief tutorial on how to use Salmon. The data provided to us appears to be already quantified so this is good for later uses.
+
+
+### 2.3 - Reading in data with tximeta
+
+to begin we must first begin bt loading the package with the data example
+
+```{r libraries, results='hide'}
+library("airway")
+```
+
+The R function system.file can be used to find out where on your computer the files from a package have been installed. Here we ask for the full path to the extdata directory, where R packages store external data, that is part of the airway package.
+
+```{r dir}
+dir <- system.file("extdata", package="airway", mustWork=TRUE)
+
+```
+
+We will now list the files in the directory and specifically list the files/directories that are within the quants directory
+
+```{r list files}
+list.files(dir)
+list.files(file.path(dir, "quants"))
+```
+Now we move on to loading the sample table CSV file with the read csv function 
+
+```{r sample info}
+csvfile <- file.path(dir, "sample_table.csv")
+coldata <- read.csv(csvfile, row.names=1, stringsAsFactors=FALSE)
+coldata
+```
+
+Now, to demonstrate loading the salmon quantifiation data into R, we will just work with the two samples that are provided in the airway package. We will also create a column called "names" and another called "files"
+
+
+```{r makecoldata}
+coldata <- coldata[1:2,]
+coldata$names <- coldata$Run
+coldata$files <- file.path(dir, "quants", coldata$names, "quant.sf.gz")
+file.exists(coldata$files)
+```
+
+Next, we load the tximeta package and run it on our coldata (make sure to select two if prompted)
+
+```{r tximeta}
+library("tximeta")
+se <- tximeta(coldata)
+```
+
+Once this is complete, we can now look at some of the dimensions of the se object we created
+
+
+```{r dim}
+dim(se)
+head(rownames(se))
+```
+
+Because this workflow/tutorial is concerned with gene-level analysis, we will now summarize the tracsript-level quantifications to the gene level. The correct transcript-to-gene mapping table is automatically created based on the metadata stored within the se object.
+
+
+```{r summarize}
+gse <- summarizeToGene(se)
+```
+
+With this done we can once again look at the dimensions to see that they are reduced and the row IDs are now gene IDs
+
+
+```{r lookgse}
+dim(gse)
+head(rownames(gse))
+```
+
+### 2.4 - DESeq2 import functions
+
+While there is no code for this section, it is important to note that there are other tools/inputs for DESeq2 that all have specialized uses.
+
+### 2.5 - SummarizedExperiment
+
+We will now view the component parts of a SummmarizedExperiment object
+
+```{r sumexp}
+par(mar=c(0,0,0,0))
+plot(1,1,xlim=c(0,100),ylim=c(0,100),bty="n",
+     type="n",xlab="",ylab="",xaxt="n",yaxt="n")
+polygon(c(45,90,90,45),c(5,5,70,70),col="pink",border=NA)
+polygon(c(45,90,90,45),c(68,68,70,70),col="pink3",border=NA)
+text(67.5,40,"assay(s)")
+text(67.5,35,'e.g. "counts", ...')
+polygon(c(10,40,40,10),c(5,5,70,70),col="skyblue",border=NA)
+polygon(c(10,40,40,10),c(68,68,70,70),col="skyblue3",border=NA)
+text(25,40,"rowRanges")
+polygon(c(45,90,90,45),c(75,75,95,95),col="palegreen",border=NA)
+polygon(c(45,47,47,45),c(75,75,95,95),col="palegreen3",border=NA)
+text(67.5,85,"colData")
+
+```
+
+We now will load the full count matrix corresponding to all samples and all data, which is provided in the airway package, and will continue the analysis with the full data object. 
+
+```{r loadfullgse}
+data(gse)
+gse
+```
+
+The counts shown above are the first matrix, we can exam them using the assayNames function
+
+```{r assaygse}
+assayNames(gse)
+head(assay(gse), 3)
+colSums(assay(gse))
+```
+
+We will now use rowRanges, which shows the ranges for the first and last five genes
+
+```{r rowrangesgse}
+rowRanges(gse)
+```
+
+the rowRanges also contains metadata within it that we can view using the seqinfo function
+
+```{r lookseqinfo}
+seqinfo(rowRanges(gse))
+```
+The colData for the SummarizedExperiment reflects the data frame that was provided to the tximeta function for importing the qualification data we can now see these column names
+
+```{r coldatagse}
+colData(gse)
+```
+
+### 2.6 - Branching Point
+
+At this point, we have counted the fragments which overlap the genes in the gene model we specified. From this point forward we could use a variety of Biodonductor pakcages for data exploration. For the rest of this tutorial however we will continue using DEseq 
+
+# 3 - The DESeqDataSet object, sample information and the design formula
+
+Bioconductor software packages often define and use a custom class for storing data that makes sure that all the needed data slots are consistently provided and fulfill the requirements. The Bioconductor software also has general data classes that can be used to move data between packages (such as SummarizedExperiment). 
+
+for this case (with DESeq2) the custom class is called DESeqDataSet which is built on top of the Summarized experiment class (this means it is easy to convert summarizedExpirment objects to DESeqDataSet objects)
+
+Two big differences between the two data classes is that...
+
+1: the assay slot is instead accessed using the counts accessor function, and the DESeqDataSet class enforces that the values in this matrix are non-negative integers.
+
+2: the DESeqDataSet has an associated design formula. The design formula tells which columns in the sample information table (colData) specify the experimental design and how these factors should be used in the analysis.
+
+
+To begin, we can look at the columns of the colData of gse. We can look at each column specifically by utalizing the $.
+
+```{r gsevars}
+gse$donor
+gse$condition
+```
+
+It is also possible to change the names of the levels on a variable. It is critical however not to change the order...
+
+```{r gsevarrename}
+gse$cell <- gse$donor
+gse$dex <- gse$condition
+```
+
+Below we will rename "Untreated" to "untrt" and "Dexamethasone" to "trt"
+
+```{r rename levels}
+levels(gse$dex)
+levels(gse$dex) <- c("untrt", "trt")
+```
+
+Note: it is prefered in R that the first level of a factor be the reference level (e.g. control, or untreated samples). In this case, when the colData table was assembled the untreated samples were already set as the reference, but if this were not the case we could use relevel as shown below. While levels(...) <- above was simply for renaming the character strings associated with levels, relevel is a very different function, which decides how the variables will be coded, and how contrasts will be computed. For a two-group comparison, the use of relevel to change the reference level would flip the sign of a coefficient associated with a contrast between the two groups.
+
+```{r gsedex}
+library("magrittr")
+gse$dex %<>% relevel("untrt")
+gse$dex
+```
+
+%<>% is the compound assignment pipe-operator from the magrittr package, the above line of code is a concise way of saying:
+
+(we do not actually want to run this code so eval will be set to false)
+```{r explaincmpass, eval = FALSE}
+gse$dex <- relevel(gse$dex, "untrt")
+
+```
+
+For running DESeq2 models, you can use R’s formula notation to express any fixed-effects experimental design. Note that DESeq2 uses the same formula notation as, for instance, the lm function of base R.If the research aim is to determine for which genes the effect of treatment is different across groups, then interaction terms can be included and tested using a design such as [~ group + treatment + group:treatment].
+
+
+In the following sections, we will demonstrate the construction of the DESeqDataSet from two starting points:
+
+ -> from a SummarizedExperiment object
+ -> from a count matrix and a sample information table
+
+
+### 3.1 Starting from SummarizedExperiment
+
+
+we can quickly check the millions of frgaments that could be mapped by the salmon data to the genes using the round function (second argument indicates decimal places)
+
+```{r countReads}
+round( colSums(assay(gse)) / 1e6, 1 )
+```
+
+We can now construct a DESewDataSet from our gse object. to do this we will need the library DESeq2
+
+```{r make dds}
+library("DESeq2")
+dds <- DESeqDataSet(gse, design = ~ cell + dex)
+```
+
+### 3.2 Starting from count matrices
+
+The information in a SummarizedExperiment object can be accessed with accessor functions. For example, to see the actual data, i.e., here, the fragment counts, we use the assay function. (The head function restricts the output to the first few lines.)
+
+```{r countdata}
+countdata <- round(assays(gse)[["counts"]])
+head(countdata, 3)
+```
+
+In the count matrix above, each row represents a gene,
+each column represents a sequenced RNA library, and the values give the estimated counts of fragments that were probabilistically assigned to the respective gene in each library by Salmon
+
+Note:  If you’ve imported the count data in some other way, for example loading a pre-computed count matrix, it is very important to check manually that the columns of the count matrix correspond to the rows of the sample information table.
+
+```{r coldatagsecheck}
+coldata <- colData(gse)
+```
+
+We now have all the ingredients to prepare our data object in a form that is suitable for analysis.
+
+Now we will construct the DESeqDataSet object
+
+```{r DESeqDataSet}
+ddsMat <- DESeqDataSetFromMatrix(countData = countdata,
+                                 colData = coldata,
+                                 design = ~ cell + dex)
+
+```
+
+# 4 - Exploratory analysis and visualization
+
+The first path of this workflow involves transforming the counts in order to visually explore sample relationships
+
+### 4.1 Pre-filtering the dataset
+
+To filter the data, we have to remove the rows that have no or nearly no infromation about the amount of gene expression. this can be done by removing rows that have no counts or only a single count across all samples.
+
+```{r ddsFilter}
+nrow(dds)
+keep <- rowSums(counts(dds)) > 1
+dds <- dds[keep,]
+nrow(dds)
+```
+
+Data can be filtered even further. in the example below we look for rows with at least 3 samples that have a count of 10 or higher.
+
+```{r 3orhigher}
+keep <- rowSums(counts(dds) >= 10) >= 3
+```
+
+### 4.2 The variance stabalizing transformation and the rlog
+
+Many common statistical methods for exploratory analysis of multidimensional data, for example clustering and principal components analysis (PCA), work best for data that generally has the same range of variance at different ranges of the mean values.When the expected amount of variance is approximately the same across different mean values, the data is said to be homoskedastic.For RNA-seq counts, however, the expected variance grows with the mean.For example, if one performs PCA directly on a matrix of counts or normalized counts, the resulting plot typically depends mostly on the genes with highest counts because they show the largest absolute differences between samples. A simple and often used strategy to avoid this is to take the logarithm of the normalized count values plus a pseudocount of 1. 
+
+This choice of pseudocount is important however. Depending on the pseudo count, the genes with the very lowest counts will contriube to much of the plots noise. This is because taking the logarithm of small counts actually inflates their variance.
+
+This is concept is seen below in the following graphs
+
+```{r graph 1}
+lambda <- 10^seq(from = -1, to = 2, length = 1000)
+cts <- matrix(rpois(1000*100, lambda), ncol = 100)
+library("vsn")
+meanSdPlot(cts, ranks = FALSE)
+```
+
+
+The next graph if for the logarithm-transformed counts...
+
+```{r logGraph}
+log.cts.one <- log2(cts + 1)
+meanSdPlot(log.cts.one, ranks = FALSE)
+```
+
+The logarithm with a small pseudocount amplifies differences when the values are close to 0. The low count genes with low signal-to-noise ratio will overly contribute to sample-sample distances and PCA plots.
+
+
+To combat this, DESeq2 offers two transformative solutions to stabalize the variance across the mean
+
+1: variance stabalizing transfromation (VST)
+2: the regularized-logarithm transformation (rlog)
+
+The VST is much faster to compute and is less sensitive to high count outliers than the rlog
+
+The rlog tends to work well on small datasets (n < 30), potentially outperforming the VST when there is a wide range of sequencing depth across samples (an order of magnitude difference).
+
+VST is reccomended for medium to large datasets
+
+Below we will use both.....
+
+VST:
+```{r vst}
+vsd <- vst(dds, blind = FALSE)
+head(assay(vsd), 3)
+colData(vsd)
+```
+
+rlog:
+```{r}
+rld <- rlog(dds, blind = FALSE)
+head(assay(rld), 3)
+```
+
+blind = false means that differences between cell lines and treatment (the variables in the design) will not contribute to the expected variance-mean trend of the experiment.For a fully unsupervised transformation, one can set blind = TRUE (which is the default).
+
+in the figure below we plot the first sample against the second, first simply using the log2 function (after adding 1, to avoid taking the log of zero), and then using the VST and rlog-transformed values. For the log2 approach, we need to first estimate size factors to account for sequencing depth, and then specify normalized=TRUE. Sequencing depth correction is done automatically for the vst and rlog.
+
+```{r graph comparisons}
+library("dplyr")
+library("ggplot2")
+
+
+dds <- estimateSizeFactors(dds)
+
+df <- bind_rows(
+  as_data_frame(log2(counts(dds, normalized=TRUE)[, 1:2]+1)) %>%
+    mutate(transformation = "log2(x + 1)"),
+  as_data_frame(assay(vsd)[, 1:2]) %>% mutate(transformation = "vst"),
+  as_data_frame(assay(rld)[, 1:2]) %>% mutate(transformation = "rlog"))
+
+colnames(df)[1:2] <- c("x", "y")  
+
+ggplot(df, aes(x = x, y = y)) + geom_hex(bins = 80) +
+  coord_fixed() + facet_grid( . ~ transformation) 
+```
+
+Looking at the figure above, We can see how genes with low counts (bottom left-hand corner) seem to be excessively variable on the ordinary logarithmic scale, while the VST and rlog compress differences for the low count genes for which the data provide little information about differential expression.
+
+
+### 4.3 Sample distances
+
+We use the R function dist to calculate the Euclidean distance between samples. To ensure we have a roughly equal contribution from all genes, we use it on the VST data. We need to transpose the matrix of values using t, because the dist function expects the different samples to be rows of its argument, and different dimensions (here, genes) to be columns.
+
+```{r Sample distances}
+sampleDists <- dist(t(assay(vsd)))
+sampleDists
+```
+
+
+We can visualize distances using a heat map... first we must download the right packages
+```{r heat map packages}
+library("pheatmap")
+library("RColorBrewer")
+```
+
+
+We must manually provide sampleDists to the clustering-distances argument to get the mat arranged by distances.
+
+We can specify collor using the RcolorBrewer package
+
+```{r heatmap}
+sampleDistMatrix <- as.matrix( sampleDists )
+rownames(sampleDistMatrix) <- paste( vsd$dex, vsd$cell, sep = " - " )
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists,
+         col = colors)
+```
+
+You can also calculate sample distances using the Poisson Distance implemented by the PoiClaclu package. This is displayed in the figure below.
+
+```{r Heatmap2}
+library("PoiClaClu")
+poisd <- PoissonDistance(t(counts(dds)))
+
+## ----poisdistheatmap, fig.width = 6.1, fig.height = 4.5--------------------
+samplePoisDistMatrix <- as.matrix( poisd$dd )
+rownames(samplePoisDistMatrix) <- paste( dds$dex, dds$cell, sep=" - " )
+colnames(samplePoisDistMatrix) <- NULL
+pheatmap(samplePoisDistMatrix,
+         clustering_distance_rows = poisd$dd,
+         clustering_distance_cols = poisd$dd,
+         col = colors)
+
+```
+### 4.4 PCA plot
+
+Another way to visualize sample-to-sample distances is a principal components analysis
+
+In this graph, the data points are projected onto the 2D plane sich that they spread out into two directions that explain most of the differences.
+
+X-axis is the PC1 variance (seperates the data the most)
+
+Y-axis is PC2 variance
+
+The total perent variance in each direction is printed on the axis (they do not need to add up to 100)
+
+```{r plotPCA}
+plotPCA(vsd, intgroup = c("dex", "cell"))
+```
+In the above figure, each unique combination of treatment and cell line is given its own color.
+
+It is possible to create a PCA plot from scratch using ggplot2
+
+```{r ggplot pcaData}
+pcaData <- plotPCA(vsd, intgroup = c( "dex", "cell"), returnData = TRUE)
+pcaData
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+```
+This data can now be used to build a second plot.
+Point color: dexamethasone treatment 
+Point shape: cell line
+
+```{r PCA with VST data}
+ggplot(pcaData, aes(x = PC1, y = PC2, color = dex, shape = cell)) +
+  geom_point(size =3) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  ggtitle("PCA with VST data")
+```
+
+The plot above shows the difference between cells are considerable, though not stronger than the differences due to treatment with dexamethasone
+
+### 4.5 PCA plot using Generalized PCA
+
+Another technique for performing dimension reduction on data that is not Normally distributed (e.g. over-dispersed count data) is generalized principal component analysis, or GLM-PCA as implemented in the package glmpca
+
+We willnow see the apllication of this in the figure below
+
+```{r glmpca}
+library("glmpca")
+gpca <- glmpca(counts(dds), L=2)
+gpca.dat <- gpca$factors
+gpca.dat$dex <- dds$dex
+gpca.dat$cell <- dds$cell
+```
+```{r glmpca graph}
+ggplot(gpca.dat, aes(x = dim1, y = dim2, color = dex, shape = cell)) +
+  geom_point(size =3) + coord_fixed() + ggtitle("glmpca - Generalized PCA")
+```
+
+### 4.6 MDS Plot 
+
+Another plot, very similar to the PCA plot, can be made using the multidimensional scaling (MDS) function in base R.
+
+This type of plot is helpful when we dont have a matrix of data and only a matrix of distances.
+
+the  figure below is an example of comuting the MDS for the distances from the VST data
+
+```{r MDS VSTdata}
+mds <- as.data.frame(colData(vsd))  %>%
+  cbind(cmdscale(sampleDistMatrix))
+ggplot(mds, aes(x = `1`, y = `2`, color = dex, shape = cell)) +
+  geom_point(size = 3) + coord_fixed() + ggtitle("MDS with VST data")
+
+```
+
+Next we will show the same plot but using the PoissonDistance from the heatmap calcualtions done earlier
+
+```{r MDSPoisson}
+mdsPois <- as.data.frame(colData(dds)) %>%
+  cbind(cmdscale(samplePoisDistMatrix))
+ggplot(mdsPois, aes(x = `1`, y = `2`, color = dex, shape = cell)) +
+  geom_point(size = 3) + coord_fixed() + ggtitle("MDS with PoissonDistances")
+
+```
+
+

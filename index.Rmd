@@ -13,6 +13,9 @@ This is my new website for Biology 497G!
 * [lab 3](Lab3_JarrodDaniels.html)
 * [lab 4](Lab4_JarrodDaniels.html)
 * [lab 5](Lab5_JarrodDaniels.html)
+* [Lab 7](Lab7_Jarrod_Daniels.html)
+* [Lab 8](Lab8_JarrodDaniels.html)
+* [Lab 9 (COVID-19 Data)](Daniels_Jarrod_Lab9.html)
 
 <br />
 <br />
