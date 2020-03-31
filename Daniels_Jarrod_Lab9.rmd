@@ -28,6 +28,21 @@ head(report_03_11_2020)
 str(report_03_11_2020)
 ```
 
+The data seen above is from older reports and with new reports, the format of the data has changed. The new report is seen below.
+
+```{r new data format}
+report_03_23_2020 <-   read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-23-2020.csv"))
+```
+
+```{r head new}
+head(report_03_23_2020)
+```
+
+```{r str new}
+str(report_03_23_2020)
+```
+
+
 Now create a plot of confirmed cases in the US as of March 11th
 ```{r confirmedCaseState, fig.height = 7.5}
 report_03_11_2020 %>% 
@@ -62,66 +77,167 @@ report_03_11_2020 %>%
 coord_flip()
 ```
 
-Working with the time series data
+# **Working with the time series data**
 
 ```{r timeData}
 time_series_confirmed <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")) %>%
-  rename(Province.State = "Province/State", Country.Region = "Country/Region")
+  rename(Province_State = "Province/State", Country_Region = "Country/Region")
 ```
+
 Checking data properties
 ```{r head2}
 head(time_series_confirmed)
 ```
+
 ```{r convertToLong}
 time_series_confirmed_long <- time_series_confirmed %>% 
-               pivot_longer(-c(Province.State, Country.Region, Lat, Long),
-                            names_to = "Date", values_to = "Confirmed") %>% 
-               group_by(Country.Region,Date) %>% 
-               summarise(Confirmed = sum(Confirmed))
-
-# convert date to data format
-time_series_confirmed_long$Date <- mdy(time_series_confirmed_long$Date)
-# Thanks to Prof. Chris Sunderland for this code chunk
+               pivot_longer(-c(Province_State, Country_Region, Lat, Long),
+                            names_to = "Date", values_to = "Confirmed") 
 ```
 
+Now we can look at the format of the dataframe
 ```{r headLong}
 head(time_series_confirmed_long)
 ```
-Now we can graph the confrimed US cases over time
-```{r confirmedCasesUSTime}
-time_series_confirmed_long %>% 
-  filter (Country.Region == "US") %>% 
+It is also helpful to get the confirmed deaths in the same table. We can create another table with deaths and join the two tables.
+
+```{r death time series}
+time_series_deaths <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")) %>%
+  rename(Province_State = "Province/State", Country_Region = "Country/Region")
+```
+
+Now we convert it to long format
+```{r death to long}
+time_series_deaths_long <- time_series_deaths %>% 
+  pivot_longer(-c(Province_State, Country_Region, Lat, Long),
+               names_to = "Date", values_to = "Deaths")
+head(time_series_deaths_long)
+```
+
+To join 2 tables we need a common column in which each row is a unique name. This is often called the Key. None of the columns in this data set meet that criteria, but we can create a column to serve as our key by mergering the names for the Province_State, Country_Region and Date columns using unite.
+
+```{r join 1}
+time_series_confirmed_long <- time_series_confirmed_long %>% 
+  unite(Key, Province_State, Country_Region, Date, sep = ".", remove = FALSE)
+head(time_series_confirmed_long)
+```
+
+For the second table we can do the same and eliminate the columns that are redundant so that we just have the Key and Deaths columns
+
+```{r join 2}
+time_series_deaths_long <- time_series_deaths_long %>% 
+  unite(Key, Province_State, Country_Region, Date, sep = ".") %>% 
+  select(Key, Deaths)
+```
+
+Now to join the tables. A full_join which means that the keys that are common to the tables will be joined and there will be counts for both Confirmed and Deaths. Where there are not matching values, returns NA for the one missing. select can be used to remove the key after the join since we don’t have further need for it.
+
+```{r join 3}
+time_series_long_joined <- full_join(time_series_confirmed_long,
+              time_series_deaths_long, by = c("Key"))
+head(time_series_long_joined)
+```
+
+We can now check to make sure neither the Cofirmed or Death counts have NA as a value (both tables have the same number of rows, but we should check to make sure)
+
+```{r checks}
+which(is.na(time_series_long_joined$Confirmed))
+which(is.na(time_series_long_joined$Deaths))
+```
+We can now perform the same set of steps to add the recovered data to the table
+
+```{r recovered}
+time_series_recovered <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv")) %>%
+  rename(Province_State = "Province/State", Country_Region = "Country/Region")
+
+
+time_series_recovered_long <- time_series_recovered %>% 
+  pivot_longer(-c(Province_State, Country_Region, Lat, Long),
+               names_to = "Date", values_to = "Recovered")
+
+
+time_series_recovered_long <- time_series_recovered_long %>% 
+  unite(Key, Province_State, Country_Region, Date, sep = ".") %>% 
+  select(Key, Recovered)
+
+
+time_series_long_joined <- full_join(time_series_long_joined,
+              time_series_recovered_long, by = c("Key")) %>% 
+    select(-Key)
+head(time_series_long_joined)
+```
+Before we can begin we must reformat data
+```{r date reformat}
+time_series_long_joined$Date <- mdy(time_series_long_joined$Date)
+```
+
+Confirmed, Deaths and Recovered are all count data, and there may be times when we want to plot all three on the same graph. There are multiple ways to accomplish this and one is through creating a column will all 3 using _pivot_long
+
+```{r 3in1}
+time_series_long_joined_counts <- time_series_long_joined %>% 
+  pivot_longer(-c(Province_State, Country_Region, Lat, Long, Date),
+               names_to = "Report_Type", values_to = "Counts")
+head(time_series_long_joined_counts)
+```
+
+# **Making Graphs from time series data
+```{r confirmedCasesUS}
+time_series_long_joined %>% 
+  group_by(Country_Region,Date) %>% 
+  summarise_at(c("Confirmed", "Deaths", "Recovered"), sum) %>% 
+  filter (Country_Region == "US") %>% 
     ggplot(aes(x = Date,  y = Confirmed)) + 
     geom_point() +
     geom_line() +
     ggtitle("US Confirmed COVID-19 Cases")
+
 ```
+
 
 We can also add in multiple countries
 ```{r confirmedCasesCountries}
-time_series_confirmed_long %>% 
-  filter (Country.Region %in% c("China","Japan", "Korea, South",
+
+time_series_long_joined %>% 
+  group_by(Country_Region,Date) %>% 
+  summarise_at(c("Confirmed", "Deaths", "Recovered"), sum) %>% 
+  filter (Country_Region %in% c("China","Japan", "Korea, South",
                                 "Italy","Spain", "US")) %>% 
     ggplot(aes(x = Date,  y = Confirmed)) + 
     geom_point() +
     geom_line() +
     ggtitle("Confirmed COVID-19 Cases") +
-    facet_wrap(~Country.Region, ncol=2, scales="free_y")
+    facet_wrap(~Country_Region, ncol=2, scales="free_y")
+
 ```
 We can also put the multiple countries on a single graph
 ```{r confirmedcasessamegraph}
-  time_series_confirmed_long %>% 
-  filter (Country.Region %in% c("China","France","Italy", 
+time_series_long_joined %>% 
+    group_by(Country_Region,Date) %>% 
+    summarise_at(c("Confirmed", "Deaths", "Recovered"), sum) %>% 
+    filter (Country_Region %in% c("China","France","Italy", 
                                 "Korea, South", "US")) %>% 
-    ggplot(aes(x = Date,  y = Confirmed, color = Country.Region)) + 
+    ggplot(aes(x = Date,  y = Confirmed, color = Country_Region)) + 
     geom_point() +
     geom_line() +
     ggtitle("Confirmed COVID-19 Cases")
 ```
 
-Visualizing data on maps
-Here are two examples provided by Prof. Chris Sunderland and Anisa Dhana
+We can use the alternative data frame with column Report_Type to show Confirmed, Deaths and Recovered. Because the counts for Deaths and Recovered are low relative to Confirmed a log scale works best here for seeing the pattern
 
+```{r ConfirmedDeathRecover}
+time_series_long_joined_counts %>% 
+  group_by(Country_Region, Report_Type, Date) %>% 
+  summarise(Counts = sum(Counts)) %>% 
+  filter (Country_Region == "US") %>% 
+    ggplot(aes(x = Date,  y = log2(Counts), fill = Report_Type, color = Report_Type)) + 
+    geom_point() +
+    geom_line() +
+    ggtitle("US COVID-19 Cases")
+```
+
+# **Visualizing data on maps**
+
+Here are two examples provided by Prof. Chris Sunderland and Anisa Dhana
 ```{r libraries 2}
 library(maps)
 library(viridis)
@@ -179,7 +295,7 @@ head(time_series_confirmed_long2)
 ```
 Plotting the data
 ```{r coivd-19Spread}
-static <- ggplot(subset(time_series_confirmed_long2,Date %in% seq(min(Date),max(Date),7)),
+static <- ggplot(subset(time_series_confirmed_long2,Date %in% seq(min(Date),max(Date),14)),
             aes(x = Long, y = Lat, size = cumulative_cases/1000)) +
             borders("world", colour = NA, fill = "grey90") +
             theme_bw() +
@@ -188,68 +304,80 @@ static <- ggplot(subset(time_series_confirmed_long2,Date %in% seq(min(Date),max(
                  size="Cases (x1000))") +
             theme(legend.position = "right") +
             coord_fixed(ratio=1)+
-            facet_wrap(.~Date,nrow=3)
+            facet_wrap(.~Date,ncol=1)
 static
 ```
 
 Exercises
 
 Report Graphs:
-```{r confirmedCasesChina}
-tempData = subset(report_03_11_2020, Province.State=="Hubei")
+
+For the first graph I chose to look at the single day stats of Massachusetts in terms of report confirmed, deathly, and recovered cases of COVID-19 in MA. While not the most complicated graph, a simple visualization such as the one below allows you to see distribution of case types for a given day. This also provides the viewer with an opportunity to get a visual idea of how the State of MA is doing in a single moment in time.
+
+```{r confirmedCasesMA}
+tempData = subset(report_03_11_2020, Province.State=="Massachusetts")
 values = rep(c(tempData$Confirmed, tempData$Deaths, tempData$Recovered))
 condition = c("Confirmed", "Deaths", "Recovered")
 tempData2 = data.frame(condition, values)
-ggplot(tempData2, aes(x=condition, y=values)) + geom_bar(stat = 'identity') + ylab("Number of Reported Cases") + xlab("Status") + ggtitle("State of COVID19 Cases in Hubei Province 3/11")
+ggplot(tempData2, aes(x=condition, y=values)) + geom_bar(stat = 'identity') + ylab("Number of Reported Cases") + xlab("Status") + ggtitle("State of COVID-19 Cases in MA (3-11-20)")
 ```
 
-```{r US Recovered Cases}
-report_03_11_2020 %>%
-  filter (Country.Region == "US") %>%
-  group_by(Province.State) %>% 
-  summarise(Recovered = sum(Recovered)) %>% 
-  arrange(desc(Recovered)) %>% 
-  slice(1:5) %>%
-  ggplot(aes(x = reorder(Province.State, Recovered),  y = Recovered)) + 
+Moving on from this, I next wanted to look at what the distribution of COVID-19 cases was for each county in MA. While also simple, this type of visualization allows citizens/viewers to get an idea across the state of which areas have been hit hard by the virus and which have not. This type of visualization is also helpful for possibly identifying epicenters and where the virus outbreak began/where it is heading.
+
+```{r CasesByMACounty}
+report_03_23_2020 %>%
+  filter (Country_Region == "US") %>%
+  filter ((Province_State == "Massachusetts")) %>%
+  group_by(Admin2) %>% 
+  ggplot(aes(x = reorder(Admin2, Confirmed),  y = Confirmed)) + 
     geom_bar(stat = 'identity') +
-    ggtitle("The 5 states with the highest amount of recovered cases") +
-    ylab("State") +
-    xlab("Recovered Cases")
+    ggtitle("Confirmed Cases of COVID-19 Cases in MA by County (3-23-20)") +
+    ylab("County") +
+    xlab("Confirmed Cases")+
+    coord_flip()
   
 ```
 
 Time Series Graphs:
-```{r European Union}
-time_series_confirmed_long %>% 
-  filter (Country.Region %in% c("France","Spain","Sweden", 
-                                "Germany", "Finland", "Poland", "Italy", "Romania","Greece", "Bulgaria", "Hungary")) %>% 
-    ggplot(aes(x = Date,  y = Confirmed, color = Country.Region)) + 
+
+Next, while working with time series data, I wanted to look at some of the countries that have been hit hardest by the virus. Specifically I wanted visualize the different case types by country so that we could get a better look at how these countries have handled the virus over time and look for things such as curve flattening and general trends in the data. It is also important to note that each country varies greatly in terms of size and population. Thus, as a result we have normalized the data to take this into account.
+```{r ChinaUSAItalySpain}
+time_series_long_joined_counts %>% 
+  group_by(Country_Region, Report_Type, Date) %>% 
+  summarise(Counts = sum(Counts)) %>% 
+  filter (Country_Region %in% c("US","China", "Italy", "Spain")) %>% 
+    ggplot(aes(x = Date,  y = log2(Counts), fill = Report_Type, color = Report_Type)) + 
     geom_point() +
     geom_line() +
-    ggtitle("Confirmed COVID-19 Cases Across 10 Largest EU Countries")
+    ylab("Log2 of Count") +
+    ggtitle("Major Pandemic Countries COVID-19 Cases") +
+    facet_wrap(~Country_Region, ncol=2, scales="free_y")
+
 ```
 
-```{r AustraliaRegions}
-time_series_confirmed_long3 <- time_series_confirmed %>% 
-               pivot_longer(-c(Province.State, Country.Region, Lat, Long),
-                            names_to = "Date", values_to = "Confirmed")
+Moving on, much like in the previous section, we can look at data within a single country now and try to identify trends in the data on a more local scale. For this example I decided to look at the provinces in china to see if there was anything interesting to be found. It is also intersting to note that when looking at the data, although the numbers tend to vary greatly (some pronvices hit much harder than others), many provinces share similar trends in the curve for COVID-19 Cases.
 
-time_series_confirmed_long3$Date <- mdy(time_series_confirmed_long3$Date)
-
-time_series_confirmed_long3 %>% 
-  filter (Country.Region %in% c("Australia")) %>%
-  group_by(Province.State) %>%
-    ggplot(aes(x = Date,  y = Confirmed,  color = Province.State)) + 
+```{r AustraliaRegions, fig.height=15, fig.width= 20}
+time_series_long_joined_counts %>% 
+  group_by(Country_Region, Province_State, Report_Type, Date) %>% 
+  summarise(Counts = sum(Counts)) %>% 
+  filter (Country_Region == "China") %>% 
+    ggplot(aes(x = Date,  y = log2(Counts), fill = Report_Type, color = Report_Type)) + 
     geom_point() +
     geom_line() +
-    ggtitle("Confirmed COVID-19 Cases Across Australian Provinces") +
-    facet_wrap(~Country.Region, ncol=2, scales="free_y")
+    ylab("Log2 of Count") +
+    ggtitle("Time Series of COVID-19 Cases in China by Province") +
+    facet_wrap(~Province_State, ncol=8, scales="free_y")
+
           
 ```
 
-Map Graphs
+Map Graphs:
 
-Total confirmed deaths gloablly (Outdated)
+Finally, moving onto to map graphs, I wanted to look at the toll that COVID-19 has taken on the world as well as some of the countries with the highest amount of confirmed cases. These visualizations are good for looking at how the virus progresses as time goes on and how each country dealt with it. You could also use this data to find epicenters and area's of high risk (much like we can do with confirmed cases). The first graph seen below is a single day map of the total confirmed deaths due to covid-19 on a global scale
+
+
+Total confirmed deaths gloablly (3-11-20)
 ```{r Total Deaths Gloablly}
 time_series_death <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"))
 
@@ -272,10 +400,12 @@ ggplot() +
 ```
 
 
-```{r }
+Next I wanted to look at the deaths caused by Corona virus over time. This graph is useful because it allows us to see the speed in which the virus has affected a given country. Specifically when looking at Italy, they quickly surpassed China even though the virus had been in the country for a much shorter period of time. This could be useful for healtcare purposes in identifying areas that were affected by the virus the hardest.
+
+```{r deathsglobal45 }
 time_series_death_long <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")) %>%
     rename(Province.State = "Province/State", Country.Region = "Country/Region") %>%
-    filter(Country.Region == "Italy" | Country.Region == "China") %>%
+    filter(Country.Region == "Italy" | Country.Region == "China" | Country.Region == "US") %>%
     pivot_longer(-c(Province.State, Country.Region, Lat, Long),
     names_to = "Date", values_to = "cumulative_cases") %>%
     mutate(Date = mdy(Date) - days(1),
@@ -292,7 +422,7 @@ static2 <- ggplot(subset(time_series_death_long,Date %in% seq(min(Date),max(Date
             borders("world", colour = NA, fill = "grey90") +
             theme_bw() +
             geom_point(shape = 21, color='red', fill='red', alpha = 0.5) +
-            labs(title = 'Death Toll in Italy & China',x = '', y = '',
+            labs(title = 'Death Toll in Italy, China & US',x = '', y = '',
                  size="Deaths") +
             theme(legend.position = "right") +
             coord_fixed(ratio=1)+
@@ -300,6 +430,10 @@ static2 <- ggplot(subset(time_series_death_long,Date %in% seq(min(Date),max(Date
 
 static2
 ```
+
+
+```
+
 
 
 
