@@ -1,0 +1,112 @@
+---
+title: "random"
+author: "Jarrod Daniels"
+date: "4/3/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(maps)
+library(mapdata)
+library(lubridate)
+library(viridis)
+library(wesanderson)
+
+
+```
+
+```{r rand}
+dir <- tempdir()
+download.file('https://czxb.github.io/br/chinadf.rda', file.path(dir, 'chinadf.rda'))
+load(file.path(dir, 'chinadf.rda'), verbose = TRUE)
+
+library(dplyr)
+#> Warning: package 'dplyr' was built under R version 3.6.1
+#> 
+#> Attaching package: 'dplyr'
+#> The following objects are masked from 'package:stats':
+#> 
+#>     filter, lag
+#> The following objects are masked from 'package:base':
+#> 
+#>     intersect, setdiff, setequal, union
+library(magrittr)
+#> Warning: package 'magrittr' was built under R version 3.6.1
+library(hchinamap)
+china <- chinadf %>% 
+  filter(region == "China")
+
+china$value[china$name == "北京"] = 569
+china$value[china$name == "湖北"] = 67801  
+
+hchinamap(name = china$name, value = china$value,
+           width = "100%", height = "400px",
+           title = "Map of China", region = "China")
+
+```
+
+```{r}
+download.file('https://czxb.github.io/br/chinadf.rda', file.path("C:/Users/jdblu/Documents/Spring 2020 UMass/Bio497G/genome-analysis", 'chinadf.rda'))
+load(file.path("C:/Users/jdblu/Documents/Spring 2020 UMass/Bio497G/genome-analysis", 'chinadf.rda'), verbose = TRUE)
+
+
+China_report <-read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-27-2020.csv")) %>%
+  filter(Country_Region == "China") %>%
+  group_by(Province_State) %>%
+  summarize(Confirmed = sum(Confirmed))
+  
+
+china <- chinadf %>% 
+  dplyr::filter(region == "China")
+china["name2"] <- NA
+china$name2[china$name == "北京"] = "Beijing"
+china$name2[china$name == "天津"] = "Tianjin"
+china$name2[china$name == "河北"] = "Hebei"
+china$name2[china$name == "山西"] = "Shanxi"
+china$name2[china$name == "内蒙古"] = "Inner Mongolia"
+china$name2[china$name == "辽宁"] = "Liaoning"
+china$name2[china$name == "吉林"] = "Jilin"
+china$name2[china$name == "黑龙江"] = "Heilongjiang"
+china$name2[china$name == "上海"] = "Shanghai"
+china$name2[china$name == "江苏"] = "Jiangsu"
+china$name2[china$name == "浙江"] = "Zhejiang"
+china$name2[china$name == "安徽"] = "Anhui"
+china$name2[china$name == "福建"] = "Fujian"
+china$name2[china$name == "江西"] = "Jiangxi"
+china$name2[china$name == "山东"] = "Shandong"
+china$name2[china$name == "河南"] = "Henan"
+china$name2[china$name == "广东"] = "Guangdong"
+china$name2[china$name == "广西"] = "Guangxi"
+china$name2[china$name == "海南"] = "Hainan"
+china$name2[china$name == "重庆"] = "Chongqing"
+china$name2[china$name == "四川"] = "Sichuan"
+china$name2[china$name == "贵州"] = "Guizhou"
+china$name2[china$name == "云南"] = "Yunnan"
+china$name2[china$name == "西藏"] = "Tibet"
+china$name2[china$name == "陕西"] = "Shaanxi"
+china$name2[china$name == "甘肃"] = "Gansu"
+china$name2[china$name == "青海"] = "Qinghai"
+china$name2[china$name == "宁夏"] = "Ningxia"
+china$name2[china$name == "新疆"] = "Xinjiang"
+china$name2[china$name == "台湾"] = "Taiwan"
+china$name2[china$name == "香港"] = "Hong Kong"
+china$name2[china$name == "澳门"] = "Macau"
+china$name2[china$name == "湖北"] = "Hubei"
+china$name2[china$name == "湖南"] = "Hunan"
+china <- left_join(china, China_report, by = c("name2" = "Province_State"))
+china$Confirmed[is.na(china$Confirmed)] = 0
+
+china2 = data.frame("region" = china$region, "name" = china$name, "value"=china$Confirmed)
+
+hchinamap(name = china2$name, value = china2$value,
+           width = "100%", height = "400px",
+           title = "Map of China", region = "China")
+
+
+```
+

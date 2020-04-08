@@ -15,7 +15,10 @@ This is my new website for Biology 497G!
 * [lab 5](Lab5_JarrodDaniels.html)
 * [Lab 7](Lab7_Jarrod_Daniels.html)
 * [Lab 8](Lab8_JarrodDaniels.html)
-* [Lab 9 (COVID-19 Data)](Daniels_Jarrod_Lab9.html)
+* [Lab 9](Daniels_Jarrod_Lab9.html)
+* [Lab 10]
+* [Lab 11](https://jcdaniels20.shinyapps.io/lab11/)
+
 
 <br />
 <br />
