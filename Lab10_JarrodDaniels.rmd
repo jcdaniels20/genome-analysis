@@ -16,6 +16,13 @@ library(mapdata)
 library(lubridate)
 library(viridis)
 library(wesanderson)
+library(rgdal)  
+library(ggplot2)
+library(rgeos)
+require(maptools)
+library(svglite)
+library(mapproj)
+
 ```
 
 Below is a graph containing all the coordinate information. We are able to now see cases for individual counties in the US allowing us to see many more points.
@@ -126,6 +133,7 @@ ggplot(data = us, mapping = aes(x = long, y = lat, group = group)) +
 ```
 
 If we only look at Massachusetts only
+
 ```{r MassAnderson, echo=FALSE, message=FALSE, warning=FALSE}
 daily_report <-   read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-27-2020.csv")) %>% 
   rename(Long = "Long_") %>% 
@@ -327,6 +335,8 @@ ggplot(data = world2, mapping = aes(x=long, y=lat, group = group))+
                         trans = "log10") +
   labs(title = "COVID-19 Confirmed Cases Around the World")
 ```
+
+
 **Figure 1** General distribution of COVID-19 around the world by country. Confirmed refers the log10 transformation of confirmed cases by country to get a better idea the actual distribution rather than simple raw numbers.
 
 
@@ -348,121 +358,71 @@ p2 <- ggplot(date_time2, aes(x = Date,  y = Counts, color = Report_Type)) +
     
 animate(p2,renderer = gifski_renderer(), end_pause = 15)
 ```
+
+
 **Figure 2** Time series graph of confirmed cases, deaths, and recovered COVID-19 cases in China.
 
-One of the explanations for such a drastic flattening of the curve in COVID-19 cases can be attributed to the mandatory lockdown and shutdown of various cities across the province of Hubei including the epicenter of the virus, Wuhan. This is apparent by looking at **FIG3** below which shows an interactive distribution of the total confirmed cases in China for varying provinces. Due to the nature of the map, all of the provinces included are in their original Mandarin names. As a result **FIG4** can provide a helpful guide to seeing the provinces in their romanized names.
-
-```{r Figure 3, message=FALSE, warning=FALSE, echo=FALSE, }
-library(dplyr)
-library(magrittr)
-library(hchinamap)
+One of the explanations for such a drastic flattening of the curve in COVID-19 cases can be attributed to the mandatory lockdown and shutdown of various cities across the province of Hubei including the epicenter of the virus, Wuhan. This is apparent by looking at **FIG3** below which shows the distribution of the total confirmed cases in China for varying provinces. Due to the nature of the map, all of the provinces unamed. As a result **FIG4** can provide a helpful guide to seeing the provinces in their English romanized names.
 
 
-dir <- tempdir()
-download.file('https://czxb.github.io/br/chinadf.rda', file.path(dir, 'chinadf.rda'))
-load(file.path(dir, 'chinadf.rda'), verbose = TRUE)
+
+```{r china_province_map, message=FALSE, warning=FALSE, echo=FALSE }
+library(conflicted)
+library(plyr)
 
 
+# First read in the shapefile
+china = readOGR(dsn=("china_shapefile"), layer="bou2_4p")
+
+# Clean the data, then fortify to a df
+china@data$id = rownames(china@data)
+china.points = fortify(china, region="id")
+china.df = join(china.points, china@data, by="id")
+
+# Dont draw the islands in south china sea
+china.df = subset(china.df, AREA > 0.005)
+
+map = ggplot(china.df, aes(x=long, y=lat, group=group)) + 
+             geom_polygon(fill="white") +
+             geom_path(color="gray", size=0.2) +
+             coord_map()
 
 China_report <-read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-27-2020.csv")) %>%
-  filter(Country_Region == "China") %>%
-  group_by(Province_State) %>%
-  summarize(Confirmed = sum(Confirmed))
-  
+  dplyr::filter(Country_Region == "China")
 
-china <- chinadf %>% 
-  dplyr::filter(region == "China")
-china$name2[china$name == "北京"] = "Beijing"
-china$name2[china$name == "天津"] = "Tianjin"
-china$name2[china$name == "河北"] = "Hebei"
-china$name2[china$name == "山西"] = "Shanxi"
-china$name2[china$name == "内蒙古"] = "Inner Mongolia"
-china$name2[china$name == "辽宁"] = "Liaoning"
-china$name2[china$name == "吉林"] = "Jilin"
-china$name2[china$name == "黑龙江"] = "Heilongjiang"
-china$name2[china$name == "上海"] = "Shanghai"
-china$name2[china$name == "江苏"] = "Jiangsu"
-china$name2[china$name == "浙江"] = "Zhejiang"
-china$name2[china$name == "安徽"] = "Anhui"
-china$name2[china$name == "福建"] = "Fujian"
-china$name2[china$name == "江西"] = "Jiangxi"
-china$name2[china$name == "山东"] = "Shandong"
-china$name2[china$name == "河南"] = "Henan"
-china$name2[china$name == "广东"] = "Guangdong"
-china$name2[china$name == "广西"] = "Guangxi"
-china$name2[china$name == "海南"] = "Hainan"
-china$name2[china$name == "重庆"] = "Chongqing"
-china$name2[china$name == "四川"] = "Sichuan"
-china$name2[china$name == "贵州"] = "Guizhou"
-china$name2[china$name == "云南"] = "Yunnan"
-china$name2[china$name == "西藏"] = "Tibet"
-china$name2[china$name == "陕西"] = "Shaanxi"
-china$name2[china$name == "甘肃"] = "Gansu"
-china$name2[china$name == "青海"] = "Qinghai"
-china$name2[china$name == "宁夏"] = "Ningxia"
-china$name2[china$name == "新疆"] = "Xinjiang"
-china$name2[china$name == "台湾"] = "Taiwan"
-china$name2[china$name == "香港"] = "Hong Kong"
-china$name2[china$name == "澳门"] = "Macau"
-china$name2[china$name == "湖北"] = "Hubei"
-china$name2[china$name == "湖南"] = "Hunan"
+city_df = China_report[c("Province_State", "Lat", "Long_", "Confirmed")]
 
-china_join <- left_join(china, China_report, by = c("name2" = "Province_State"))
+plot1 = map + geom_point(data = city_df, aes(x=Long_, y=Lat, size=Confirmed), 
+                         inherit.aes=FALSE, shape=21, stroke=0, 
+                         colour="white", fill="red", alpha=0.3) +
+              scale_size_continuous(name = "Confirmed", range = c(1, 25)) + 
+              labs(title = "Covid-19 Cases in China") +
+              xlab("Longitude") + ylab("Latitude") + 
+              theme(plot.title = element_text(size=22),
+                    axis.title = element_text(size=18),
+                    legend.title = element_text(size=18))
 
-china_join$val = paste(china_join$name2, china_join$Confirmed)
-  
-hchinamap(name = china_join$name, value = china_join$Confirmed,
-           width = "100%", height = "400px",
-           title = "Map of China", region = "China")
 
-library(mapdata)
-map("china", col = "gray40", ylim = c(18,54))
-
-cn_map_2 = map_data("China")
-
-ggplotly(
-  ggplot(data = China_report, mapping = aes(x = long, y = lat, group = group)) + 
-  coord_fixed(1.3) + 
-# Add data layer
-  geom_polygon(data = state_join, aes(fill = Confirmed), color = "black") +
-    scale_fill_gradientn(colours = 
-                         wes_palette("Zissou1", 100, type = "continuous")) +
-  ggtitle("COVID-19 Cases in MA") +
-# Cleaning up the graph
-  labs(x=NULL, y=NULL) +
-  theme(panel.border = element_blank()) +
-  theme(panel.background = element_blank()) +
-  theme(axis.ticks = element_blank()) +
-  theme(axis.text = element_blank())
-)
-```
-
-```{r}
-library(maptools)
-library(rgdal)
-local_fir_dir <- "C:/Users/jdblu/Documents/Spring 2020 UMass/Bio497G/genome-analysis" # local the .shp file is stored  
-china_map <- rgdal::readOGR(paste0(local_fir_dir, "bou2_4p.shp"))
+plot1
 ```
 
 
+**Figure 3** map of confirmed COVID-19 cases in china distributed by local provinces
 
-
-**Figure 3** Interactive map of confirmed COVID-19 cases in china. Hovering over a province will provide you with the province name in Mandarin and the total number of confirmed cases overall in the province
-
-![Romanized Map of Chinese Provinces](ChinaProvince.JPG) 
-
+![](ChinaProvince.JPG) 
 **Figure 4** Map of Chinese provinces with romanized province names
 
 Although most of the cases in China were isolated in the Hubei province, it is also interesting to see the spread of the virus around the provinces over time. This we can see this in **Figure 5** below. While it is already known that the virus originated in the city of Wuhan, this figure clearly shows that as well as how it spread to the surrounding areas of the country since the declaration of the pandemic
 
 ```{r Figure 5, message=FALSE, warning=FALSE, echo=FALSE}
+
 time_series_confirmed_2 <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")) %>%
-  rename(Province_State = "Province/State", Country_Region = "Country/Region")  %>% 
+  dplyr::rename(Province_State = "Province/State", Country_Region = "Country/Region")  %>% 
                pivot_longer(-c(Province_State, Country_Region, Lat, Long),
                             names_to = "Date", values_to = "Confirmed") %>%
-                mutate(Date = mdy(Date) - days(1),
+                dplyr::mutate(Date = mdy(Date) - days(1),
                   Place = paste(Lat,Long,sep="_")) %>%
-  filter(Country_Region == 'China')
+  dplyr::filter(Country_Region == 'China')
 
 
 p3 <- ggplot(time_series_confirmed_2, aes(x = Long, y = Lat, size = Confirmed/1000)) +
@@ -476,15 +436,20 @@ p3 <- ggplot(time_series_confirmed_2, aes(x = Long, y = Lat, size = Confirmed/10
                  transition_time(Date) +
                  enter_fade()
 animate(p3, renderer = gifski_renderer(), end_pause = 30)
+
 ```
+
+
 **Figure 5** Time lapse of virus spread in China
 
 After looking at the data however, what is interesting is that even though China has the largest population in the world, it is 5th in terms of overall confirmed cases. In fact the countries above them in case numbers are significantly smaller than them in comparison. This disparity can be made more apparent by viewing **Figure 6** Where we can see the timeline of confirmed cases for the 5 countries with the highest number of cases.While there is most certainly a discrepency in the way that numbers for these types of situations gets reported, I believe that this data casts some suspcision on the numbers that are being reported around the world.
+
+
 ```{r Figure 6, message=FALSE, warning=FALSE, echo=FALSE}
 data_time_an <- time_series_long_joined %>% 
-    group_by(Country_Region,Date) %>% 
-    summarise_at(c("Confirmed", "Deaths", "Recovered"), sum) %>% 
-    filter (Country_Region %in% c("US","Italy", "Spain","Germany","China")) 
+    dplyr::group_by(Country_Region,Date) %>% 
+    dplyr::summarise_at(c("Confirmed", "Deaths", "Recovered"), sum) %>% 
+    dplyr::filter (Country_Region %in% c("US","Italy", "Spain","Germany","China")) 
 
 z <- ggplot(data_time_an, aes(x = Date,  y = Confirmed, color = Country_Region)) + 
       geom_point() +
@@ -512,20 +477,23 @@ animate(z,renderer = gifski_renderer(), end_pause = 15)
 animate(z2,renderer = gifski_renderer(), end_pause = 15)
 animate(z3,renderer = gifski_renderer(), end_pause = 15)
 ```
+
+
 **Figure 6** Time Series graphs of total cases, deaths, and recoveries for 5 countries with the highest number of cases
 
-Moving on, I wanted to next focus on look at the virus on a much more local scale to see how the virus is taking course in Massachusetts. It is known that the state of Massachusetts expereinced a large spike in cases after a Biogen hosted conference that resulted in a great deal of people becoming infected. As a result of this, we can see that Mass is currently 5th in terms of total confirmed cases even though it is the 15th biggest state in the country. This is apparent by **Figure 6** and as well as **Figure 7**.
+Moving on, I wanted to next focus on look at the virus on a much more local scale to see how the virus is taking course in Massachusetts. It is known that the state of Massachusetts expereinced a large spike in cases after a Biogen hosted conference that resulted in a great deal of people becoming infected. As a result of this, we can see that Mass is currently 5th in terms of total confirmed cases even though it is the 15th biggest state in the country. This is apparent by **Figure 7** and as well as **Figure 8**.
+
 
 ```{r Figure 7, message=FALSE, warning=FALSE, echo=FALSE}
 library(plotly)
 library(viridis)
 
 daily_reportX <-read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-27-2020.csv")) %>% 
-  rename(Long = "Long_") %>%
-  filter(Country_Region == "US") %>%
-  group_by(Province_State) %>%
-  summarize(Confirmed = sum(Confirmed)) %>%
-  mutate(Province_State = tolower(Province_State))
+  dplyr::rename(Long = "Long_") %>%
+  dplyr::filter(Country_Region == "US") %>%
+  dplyr::group_by(Province_State) %>%
+  dplyr::summarize(Confirmed = sum(Confirmed)) %>%
+  dplyr::mutate(Province_State = tolower(Province_State))
   
 state_join2 <- left_join(us, daily_reportX, by = c("region" = "Province_State"))
 
@@ -545,16 +513,19 @@ ggplotly(
 )
 
 ```
+
 **Figure 7** Interactive United States heatmap of confirmed COVID-19 cases
 
 ```{r Figure 8, message=FALSE, warning=FALSE, echo=FALSE}
 daily_reportX %>%
-  arrange(desc(Confirmed)) %>%
+  dplyr::arrange(desc(Confirmed)) %>%
   slice(0:9)
 ```
+
+
 **Figure 8** 10 US States with highest confirmed cases of COVID-19
 
-Going even deeper, looking at **Figure 8** which was provided to us by the help of professor Jeffrey Blanchard from the Univeristy of Massachusetts Amherst, we can get a look at how the virus has spread through the individual counties of Massachusetts. It is interesting to note that when looking at the distribution, we can see that Boston (Suffolk County) which is the hub of the state does not even have the most cases, but is in fact Middlesex county.
+Going even deeper, looking at **Figure 9** which was provided to us by the help of professor Jeffrey Blanchard from the Univeristy of Massachusetts Amherst, we can get a look at how the virus has spread through the individual counties of Massachusetts. It is interesting to note that when looking at the distribution, we can see that Boston (Suffolk County) which is the hub of the state does not even have the most cases, but is in fact Middlesex county.
 
 ```{r Figure 9, message=FALSE, warning=FALSE, echo=FALSE}
 ggplotly(
@@ -572,6 +543,8 @@ ggplotly(
   theme(axis.text = element_blank())
 )
 ```
+
+
 **Figure 9** Interactive map of confirmed COVID-19 cases in Massachusetts by county (Dukes and Nantucket county appear to have 0 because they are counted as a single county in the data and therefore cannot be properly distinguised)
 
 Overall, while it hard to make any defintive observations based upon the data we have been given and the visualizations seen above, it is apparent in the trends the for the United States, there is still a long way to go before the spread of the virus settles down. When comparing data with the countries like China and Japan, it appears that we have failed to stop the spreading the same way they have which should be cause for us to reflect on our internal healthcare system. It also raises eyebrows as to whether or not some of these numbers are correct. This data also did not take into account testing as the US has rapidly began testing more patients as time has gone on. In the future, as more data becomes available, it would be interesting to look into specific types of cases such as looking at asymptomatic carriers, mild cases, and more severe cases. While the above data may not revolutionary it is meant to be an insightful look into the state of the world and some of its countries as we face this new pandemic.
