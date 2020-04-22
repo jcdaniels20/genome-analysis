@@ -13,6 +13,12 @@ library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(lubridate)
+library(maps)
+library(mapdata)
+library(lubridate)
+library(viridis)
+library(ggplot2)
+
 
 #loading in covid-19 time series data and wrangling it
 
@@ -69,39 +75,7 @@ type = c("Confirmed", "Deaths", "Recovered")
 country = c("US", "Italy", "Spain", "Germany", "China")
 
 
-US_time_series_confirmed_long <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")) %>%
-    select(-c(UID, iso2, iso3, code3, FIPS)) %>% 
-    rename(Long = "Long_") %>%
-    pivot_longer(-c(Admin2, Province_State, Country_Region, Lat, Long, Combined_Key),
-                 names_to = "Date", values_to = "Confirmed") 
-# Let's get the times series data for deaths
-US_time_series_deaths_long <- read_csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")) %>%
-    select(-c(UID, iso2, iso3, code3, FIPS)) %>% 
-    rename(Long = "Long_") %>%
-    pivot_longer(-c(Admin2, Province_State, Country_Region, Lat, Long, Combined_Key),
-                 names_to = "Date", values_to = "Deaths")
-# Create Keys 
-US_time_series_confirmed_long <- US_time_series_confirmed_long %>% 
-    unite(Key, Combined_Key, Date, sep = ".", remove = FALSE)
-US_time_series_deaths_long <- US_time_series_deaths_long %>% 
-    unite(Key, Combined_Key, Date, sep = ".") %>% 
-    select(Key, Deaths)
-
-# Join tables
-US_time_series_long_joined <- full_join(US_time_series_confirmed_long,
-                                        US_time_series_deaths_long, by = c("Key")) %>% 
-    select(-Key)
-# Reformat the data
-US_time_series_long_joined$Date <- mdy(US_time_series_long_joined$Date)
-# Rename
-US_time_series <- US_time_series_long_joined
-
-US_time_series = US_time_series %>%
-    filter (!Province_State %in% c("Alaska","Hawaii", "American Samoa",
-                                   "Puerto Rico","Northern Mariana Islands", 
-                                   "Virgin Islands", "Recovered", "Guam", "Grand Princess",
-                                   "District of Columbia", "Diamond Princess")) %>% 
-    filter(Lat > 0)
+US_time <- read_csv("US_Time.csv")
 
 
 
@@ -228,7 +202,7 @@ server <- function(input, output) {
     })
     
     output$CountrytimePlot = renderPlot({
-        time_fin3 = US_time_series %>%
+        time_fin3 = US_time %>%
             filter(Date == input$date2)
         
         ggplot(time_fin3, aes(x = Long, y = Lat, size = Confirmed/1000)) +

@@ -5,6 +5,8 @@ account: jcdaniels20
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2084369
-bundleId: 2989468
+bundleId: 3051164
 url: https://jcdaniels20.shinyapps.io/lab11/
-when: 1586389510.51768
+when: 1587578620.40538
+asMultiple: FALSE
+asStatic: FALSE
